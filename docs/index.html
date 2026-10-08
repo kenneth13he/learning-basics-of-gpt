@@ -1,0 +1,1287 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Name Generator Visualizer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper: #f4f1ea;
+      --panel: #ffffff;
+      --ink: #1d1d1b;
+      --ink-soft: #5c5a55;
+      --line: #dcd7cc;
+      --blue: #2a78d6;
+      --red: #e34948;
+      --yellow: #ffd23f;
+      --cream: #fff8d6;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Nunito', system-ui, sans-serif;
+      font-weight: 500;
+    }
+    .page { max-width: 1100px; margin: 0 auto; padding: 28px 16px 48px; }
+
+    h1 { font-size: clamp(28px, 4vw, 40px); font-weight: 900; margin: 0 0 4px; letter-spacing: -0.02em; }
+    h2 { font-size: clamp(22px, 3vw, 28px); font-weight: 900; margin: 44px 0 4px; letter-spacing: -0.02em; }
+    .subtitle { margin: 0 0 22px; color: var(--ink-soft); font-size: 17px; max-width: 760px; }
+    .subtitle b { color: var(--ink); font-weight: 800; }
+
+    .toolbar {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px;
+      margin-bottom: 18px;
+    }
+    button {
+      font: 800 16px 'Nunito', sans-serif;
+      color: var(--ink);
+      background: var(--panel);
+      border: 2px solid var(--ink);
+      border-radius: 12px;
+      padding: 9px 16px;
+      box-shadow: 0 3px 0 var(--ink);
+      cursor: pointer;
+      transition: transform 0.05s, box-shadow 0.05s;
+    }
+    button:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 0 0 var(--ink); }
+    button:disabled { opacity: 0.4; cursor: default; }
+    button.go { background: var(--yellow); min-width: 130px; font-size: 18px; }
+
+    .stats { display: flex; gap: 22px; margin-left: auto; }
+    .stat { line-height: 1.1; }
+    .stat .label { font-size: 13px; color: var(--ink-soft); font-weight: 700; }
+    .stat .value { font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; min-width: 72px; display: block; }
+
+    .stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 18px; align-items: start; }
+    .stage.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .train-stage { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+    @media (max-width: 900px) {
+      .stage, .stage.even, .train-stage { grid-template-columns: 1fr; }
+      .stats { margin-left: 0; }
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 2px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      position: relative;
+    }
+    .panel-title { font-size: 15px; font-weight: 800; margin: 0 0 10px; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    .panel-head .panel-title { margin: 0; }
+    .note { font-size: 14px; font-weight: 800; color: var(--ink-soft); }
+    .note b { color: var(--ink); }
+
+    .picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .picker-label { font-weight: 800; font-size: 15px; margin-right: 2px; }
+    .view-switch { display: flex; gap: 6px; flex-wrap: wrap; }
+    button.pick {
+      display: inline-flex; align-items: baseline; gap: 7px;
+      font-size: 15px; padding: 6px 14px; border-color: var(--line); box-shadow: 0 3px 0 var(--line);
+    }
+    button.pick small { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+    button.pick[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0 3px 0 var(--ink); background: var(--cream); }
+    .view-switch button.pick { font-size: 14px; padding: 5px 12px; }
+    .hint { margin: 10px 2px 0; color: var(--ink-soft); font-size: 14px; }
+
+    .tiles { display: flex; flex-wrap: wrap; gap: 6px; min-height: 52px; align-items: center; }
+    .tile {
+      width: 40px; height: 46px; border: 2px solid var(--ink); border-radius: 10px;
+      display: grid; place-items: center; font-size: 22px; font-weight: 900; background: #fff;
+      box-shadow: 0 3px 0 var(--ink);
+    }
+    .tile.pad { color: var(--ink-soft); border-color: var(--line); box-shadow: 0 3px 0 var(--line); }
+    .tile.ctx { background: var(--cream); }
+    .tile.ctx.pad { border-color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
+    .tile.next { border-style: dashed; border-color: var(--ink-soft); box-shadow: none; color: var(--ink-soft); }
+    .tile.end { background: var(--ink); color: #fff; }
+    .tile.fresh { animation: pop 0.25s ease-out; }
+    @keyframes pop { from { transform: scale(0.6); } to { transform: scale(1); } }
+
+    .section-gap { margin-top: 18px; }
+    .history { display: flex; flex-wrap: wrap; gap: 8px; min-height: 34px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      border: 2px solid var(--line); border-radius: 999px; padding: 4px 12px;
+      font-weight: 800; font-size: 15px; background: #fff;
+    }
+    .chip i { font-style: normal; font-size: 11px; font-weight: 800; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.04em; }
+    .empty { color: var(--ink-soft); font-size: 14px; }
+
+    canvas { display: block; width: 100%; }
+    #probs { aspect-ratio: 460 / 170; }
+    #inside { aspect-ratio: 545 / 430; }
+    #net-table, #count-table { aspect-ratio: 1; }
+    #train-loss { aspect-ratio: 300 / 210; }
+    #emb-map { aspect-ratio: 460 / 340; }
+
+    .slider-row { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-weight: 800; font-size: 14px; }
+    .slider-row input { flex: 1; accent-color: var(--ink); }
+    .slider-row output { min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
+
+    .bars { display: grid; gap: 12px; margin-top: 6px; }
+    .bar-row { display: grid; grid-template-columns: 128px 1fr 48px; align-items: center; gap: 10px; }
+    .bar-name { font-weight: 800; font-size: 15px; line-height: 1.1; }
+    .bar-name small { display: block; font-size: 12px; color: var(--ink-soft); font-weight: 700; }
+    .bar-track { height: 26px; border-radius: 8px; background: var(--paper); overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 8px; background: var(--blue); opacity: 0.55; transition: width 0.4s; }
+    .bar-row.current .bar-fill { opacity: 1; }
+    .bar-row.baseline .bar-fill { background: var(--line); opacity: 1; }
+    .bar-val { font-weight: 900; font-size: 18px; font-variant-numeric: tabular-nums; text-align: right; }
+    .bar-row { padding: 6px 8px; margin: 0 -8px; border: 2px solid transparent; border-radius: 12px; }
+    .bar-row.current { background: var(--cream); border-color: var(--ink); }
+
+    .tooltip {
+      position: absolute; display: none; pointer-events: none; z-index: 2;
+      background: var(--ink); color: #fff; font-size: 13px; font-weight: 700;
+      padding: 5px 9px; border-radius: 8px; white-space: nowrap;
+    }
+    #message { font-weight: 700; color: var(--ink-soft); }
+    footer { margin-top: 32px; color: var(--ink-soft); font-size: 13px; }
+    footer a { color: inherit; }
+    code { font-size: 0.95em; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>Watch a model make up names</h1>
+    <p class="subtitle">
+      Three models I trained on 32,000 real names. Each one reads the last few letters and guesses the next one.
+      Press <b>Generate</b> and watch how seeing more letters makes better names.
+    </p>
+
+    <div class="picker" role="group" aria-label="Model">
+      <span class="picker-label">Model:</span>
+      <button class="pick model-pick" data-model="bigram" aria-pressed="false">Bigram <small>sees 1 letter</small></button>
+      <button class="pick model-pick" data-model="mlp" aria-pressed="true">MLP <small>sees 3 letters</small></button>
+      <button class="pick model-pick" data-model="wavenet" aria-pressed="false">WaveNet <small>sees 8 letters</small></button>
+    </div>
+
+    <div class="toolbar">
+      <button id="generate" class="go" disabled>Generate</button>
+      <button id="step" disabled title="Pick exactly one letter">Next letter</button>
+      <button id="clear" disabled>Clear</button>
+      <span id="message">Loading models...</span>
+      <div class="stats">
+        <div class="stat"><span class="label">Sees</span><span class="value" id="stat-sees">-</span></div>
+        <div class="stat"><span class="label">Parameters</span><span class="value" id="stat-params">-</span></div>
+        <div class="stat"><span class="label">Loss</span><span class="value" id="stat-loss">-</span></div>
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="panel">
+        <p class="panel-title">The name so far</p>
+        <div class="tiles" id="tiles"></div>
+        <p class="hint">Yellow tiles are everything the model can see when it guesses the next letter. A dot marks the start or end of a name.</p>
+
+        <div class="panel-head section-gap">
+          <p class="panel-title">Next letter</p>
+          <span class="note" id="pick-note"></span>
+        </div>
+        <canvas id="probs"></canvas>
+        <p class="hint">Taller bar, more likely. The model rolls a weighted die over these bars. Click a bar to pick that letter yourself.</p>
+
+        <p class="panel-title section-gap">Made up so far</p>
+        <div class="history" id="history"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <p class="panel-title" id="inside-title">Inside the model</p>
+        </div>
+        <canvas id="inside"></canvas>
+        <p class="hint" id="inside-hint"></p>
+      </div>
+    </div>
+
+    <h2>Train the bigram network yourself</h2>
+    <p class="subtitle">
+      A one-layer network: the last letter goes in, 27 scores come out, and softmax turns them into probabilities.
+      It starts random. Press <b>Train</b> and watch its table turn into the counting table from Part 1.
+    </p>
+
+    <div class="toolbar">
+      <button id="nn-train" class="go" disabled>Train</button>
+      <button id="nn-step" disabled title="Do exactly one gradient descent step">Step</button>
+      <button id="nn-reset" disabled>New network</button>
+      <div class="stats">
+        <div class="stat"><span class="label">Step</span><span class="value" id="nn-stat-step">0</span></div>
+        <div class="stat"><span class="label">Loss</span><span class="value" id="nn-stat-loss">-</span></div>
+      </div>
+    </div>
+
+    <div class="train-stage">
+      <div class="panel">
+        <p class="panel-title">The network's table: softmax(W)</p>
+        <canvas id="net-table"></canvas>
+        <p class="hint">Row is the current letter, column is the next letter. Darker blue means more likely.</p>
+      </div>
+      <div class="panel">
+        <p class="panel-title">The counting table from Part 1</p>
+        <canvas id="count-table"></canvas>
+        <p class="hint">Just counting pairs in the names and adding 1 to every count. This is what the network is learning.</p>
+      </div>
+      <div class="panel">
+        <p class="panel-title">Loss</p>
+        <canvas id="train-loss"></canvas>
+        <div class="slider-row">
+          <label for="reg">Regularization</label>
+          <input type="range" id="reg" min="0" max="5" step="1" value="1">
+          <output id="reg-value">0.01</output>
+        </div>
+        <p class="hint">The dashed line is the counting model's loss. The network can't beat it, only match it. Regularization pulls W toward 0, the neural-net version of adding fake counts: turn it up and every row flattens out.</p>
+      </div>
+    </div>
+
+    <h2>What the models learned</h2>
+    <p class="subtitle">Under the hood, every letter becomes a list of numbers the model learns for itself, and bigger models get lower loss.</p>
+
+    <div class="stage even">
+      <div class="panel">
+        <div class="panel-head">
+          <p class="panel-title">Letter map</p>
+          <div class="view-switch" role="group" aria-label="Which model's letters">
+            <button class="pick emb-pick" data-model="mlp" aria-pressed="true">MLP</button>
+            <button class="pick emb-pick" data-model="wavenet" aria-pressed="false">WaveNet</button>
+          </div>
+        </div>
+        <canvas id="emb-map"></canvas>
+        <p class="hint" id="emb-hint"></p>
+      </div>
+      <div class="panel">
+        <p class="panel-title">Loss: how surprised each model is by real names</p>
+        <div class="bars" id="compare"></div>
+        <p class="hint">Loss is the average of −log(probability the model gave the real next letter), measured on names the MLP and WaveNet never trained on. Lower is better.</p>
+      </div>
+    </div>
+
+    <footer>
+      Models trained with my own PyTorch code (<code>makemore-*.py</code>) following Andrej Karpathy's
+      <a href="https://github.com/karpathy/makemore">makemore</a> lectures. <code>export-weights.py</code> saves the trained weights,
+      and everything on this page runs in your browser.
+    </footer>
+  </div>
+
+  <script>
+    const BLUE = '#2a78d6';
+    const RED = '#e34948';
+    const INK = '#1d1d1b';
+    const SOFT = '#5c5a55';
+    const LINE = '#dcd7cc';
+    const YELLOW = '#ffd23f';
+    const CREAM = '#fff8d6';
+    const PAPER = '#f4f1ea';
+    const IN_W = 545, IN_H = 430;
+    const PR_W = 460, PR_H = 170;
+    const TB = 300;
+    const LOSS_W = 300, LOSS_H = 210;
+    const EMB_W = 460, EMB_H = 340;
+    const NN_LR = 50;
+    const REG_STEPS = [0, 0.01, 0.1, 0.5, 2, 10];
+    const MAX_LEN = 30;
+    const VOWELS = new Set(['a', 'e', 'i', 'o', 'u']);
+
+    let data;
+    let chars;
+    let P;
+    let model = 'mlp';
+    let name = [];
+    let finished = false;
+    let view = null;
+    let history = [];
+    let generating = false;
+    let busy = false;
+    let freshIndex = -1;
+    let embModel = 'mlp';
+
+    const nn = { W: new Float64Array(729), step: 0, losses: [], running: false, reg: 0.01, total: 0, rowTotals: [] };
+
+    const probsCanvas = document.getElementById('probs');
+    const insideCanvas = document.getElementById('inside');
+    const netTable = document.getElementById('net-table');
+    const countTable = document.getElementById('count-table');
+    const lossCanvas = document.getElementById('train-loss');
+    const embCanvas = document.getElementById('emb-map');
+    const probsCtx = setupCanvas(probsCanvas, PR_W, PR_H);
+    const insideCtx = setupCanvas(insideCanvas, IN_W, IN_H);
+    const netCtx = setupCanvas(netTable, TB, TB);
+    const countCtx = setupCanvas(countTable, TB, TB);
+    const lossCtx = setupCanvas(lossCanvas, LOSS_W, LOSS_H);
+    const embCtx = setupCanvas(embCanvas, EMB_W, EMB_H);
+
+    const probsHits = hoverable(probsCanvas, PR_W, PR_H);
+    const insideHits = hoverable(insideCanvas, IN_W, IN_H);
+    const netHits = hoverable(netTable, TB, TB);
+    const countHits = hoverable(countTable, TB, TB);
+    const embHits = hoverable(embCanvas, EMB_W, EMB_H);
+
+    const MODELS = {
+      bigram: {
+        title: 'Inside the bigram model: one big table',
+        hint: 'Each row is a letter and each column is the letter after it. The model only uses the highlighted row: whatever came before the last letter is forgotten. Hover any square for its probability.',
+      },
+      mlp: {
+        title: 'Inside the MLP',
+        hint: 'Each of the 3 letters becomes 10 learned numbers (its embedding). A layer of 200 tanh neurons mixes them, then the last layer scores all 27 letters. Blue is positive, red is negative. Hover any square.',
+      },
+      wavenet: {
+        title: 'Inside the WaveNet',
+        hint: 'Read it from the bottom up. Neighbouring letters are fused into pairs, pairs into groups of 4, then all 8, so the context is combined a little at a time. Each square is a neuron: blue positive, red negative. Hover any square.',
+      },
+    };
+
+    function setupCanvas(canvas, w, h) {
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      const c = canvas.getContext('2d');
+      c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return c;
+    }
+
+    function hoverable(canvas, w, h) {
+      const tip = document.createElement('div');
+      tip.className = 'tooltip';
+      canvas.parentElement.appendChild(tip);
+      const state = { hits: [] };
+      const find = (event) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = (event.clientX - rect.left) / rect.width * w;
+        const my = (event.clientY - rect.top) / rect.height * h;
+        let found = null;
+        for (const hit of state.hits) {
+          if (mx >= hit.x && mx <= hit.x + hit.w && my >= hit.y && my <= hit.y + hit.h) found = hit;
+        }
+        return found;
+      };
+      canvas.addEventListener('mousemove', (event) => {
+        const found = find(event);
+        canvas.style.cursor = found && found.click && !generating ? 'pointer' : 'default';
+        if (!found) { tip.style.display = 'none'; return; }
+        tip.textContent = found.text;
+        tip.style.display = 'block';
+        const panel = canvas.parentElement.getBoundingClientRect();
+        const left = Math.min(event.clientX - panel.left + 12, panel.width - tip.offsetWidth - 6);
+        tip.style.left = `${Math.max(6, left)}px`;
+        tip.style.top = `${event.clientY - panel.top - 36}px`;
+      });
+      canvas.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+      canvas.addEventListener('click', (event) => {
+        const found = find(event);
+        if (found && found.click) found.click();
+      });
+      return state;
+    }
+
+    function hit(state, x, y, w, h, text, click) {
+      state.hits.push({ x, y, w, h, text, click });
+    }
+
+    function colorFor(v, maxAlpha) {
+      const s = Math.min(1, Math.abs(v));
+      return v > 0 ? `rgba(42, 120, 214, ${s * maxAlpha})` : `rgba(227, 73, 72, ${s * maxAlpha})`;
+    }
+
+    function blueFor(p, maxAlpha = 0.95) {
+      return `rgba(42, 120, 214, ${Math.min(1, Math.sqrt(p / 0.45)) * maxAlpha})`;
+    }
+
+    function wait(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function softmax(logits) {
+      const m = Math.max(...logits);
+      const e = logits.map((v) => Math.exp(v - m));
+      const s = e.reduce((a, b) => a + b, 0);
+      return e.map((v) => v / s);
+    }
+
+    function sample(p) {
+      const r = Math.random();
+      let acc = 0;
+      for (let i = 0; i < p.length; i++) {
+        acc += p[i];
+        if (r < acc) return i;
+      }
+      return p.length - 1;
+    }
+
+    function pct(p) {
+      return p >= 0.1 ? `${(p * 100).toFixed(0)}%` : `${(p * 100).toFixed(1)}%`;
+    }
+
+    function blockSize(m = model) {
+      return m === 'bigram' ? 1 : data[m].blockSize;
+    }
+
+    function forwardBigram(ctx) {
+      return { probs: P[ctx[0]].slice(), row: ctx[0], ctx };
+    }
+
+    function forwardMLP(ctx) {
+      const m = data.mlp, E = m.nEmbd, H = m.nHidden, V = chars.length;
+      const x = [];
+      for (const ix of ctx) for (let d = 0; d < E; d++) x.push(m.C[ix * E + d]);
+      const h = new Array(H);
+      for (let j = 0; j < H; j++) {
+        let s = m.b1[j];
+        for (let i = 0; i < x.length; i++) s += x[i] * m.W1[i * H + j];
+        h[j] = Math.tanh(s);
+      }
+      const logits = new Array(V);
+      for (let k = 0; k < V; k++) {
+        let s = m.b2[k];
+        for (let j = 0; j < H; j++) s += h[j] * m.W2[j * V + k];
+        logits[k] = s;
+      }
+      return { probs: softmax(logits), emb: x, h, ctx };
+    }
+
+    function forwardWaveNet(ctx) {
+      const w = data.wavenet, E = w.nEmbd, H = w.nHidden, V = chars.length;
+      let nodes = ctx.map((ix) => w.C.slice(ix * E, ix * E + E));
+      const levels = [nodes];
+      for (const b of w.blocks) {
+        const next = [];
+        for (let g = 0; g < nodes.length; g += 2) {
+          const x = nodes[g].concat(nodes[g + 1]);
+          const out = new Array(H);
+          for (let j = 0; j < H; j++) {
+            let s = 0;
+            for (let i = 0; i < x.length; i++) s += x[i] * b.W[i * H + j];
+            out[j] = Math.tanh(b.gamma[j] * (s - b.mean[j]) / Math.sqrt(b.var[j] + 1e-5) + b.beta[j]);
+          }
+          next.push(out);
+        }
+        nodes = next;
+        levels.push(nodes);
+      }
+      const top = nodes[0];
+      const logits = new Array(V);
+      for (let k = 0; k < V; k++) {
+        let s = w.bout[k];
+        for (let j = 0; j < H; j++) s += top[j] * w.Wout[j * V + k];
+        logits[k] = s;
+      }
+      return { probs: softmax(logits), levels, ctx };
+    }
+
+    function forward(ctx) {
+      if (model === 'bigram') return forwardBigram(ctx);
+      if (model === 'mlp') return forwardMLP(ctx);
+      return forwardWaveNet(ctx);
+    }
+
+    function context() {
+      const bs = blockSize();
+      const seq = new Array(bs).fill(0).concat(name);
+      return seq.slice(seq.length - bs);
+    }
+
+    function decode(ixs) {
+      return ixs.map((ix) => chars[ix]).join('');
+    }
+
+    async function main() {
+      try {
+        data = await (await fetch('models.json')).json();
+      } catch (error) {
+        document.getElementById('message').textContent = 'Could not load models.json. Serve this folder over HTTP (see the README).';
+        return;
+      }
+      chars = data.chars;
+      P = data.bigram.counts.map((row) => {
+        const total = row.reduce((a, b) => a + b + 1, 0);
+        return row.map((c) => (c + 1) / total);
+      });
+      nn.rowTotals = data.bigram.counts.map((row) => row.reduce((a, b) => a + b, 0));
+      nn.total = nn.rowTotals.reduce((a, b) => a + b, 0);
+
+      document.getElementById('message').textContent = '';
+      for (const id of ['generate', 'step', 'clear', 'nn-train', 'nn-step', 'nn-reset']) document.getElementById(id).disabled = false;
+      document.getElementById('generate').addEventListener('click', generate);
+      document.getElementById('step').addEventListener('click', () => step());
+      document.getElementById('clear').addEventListener('click', clearAll);
+      for (const button of document.querySelectorAll('.model-pick')) button.addEventListener('click', () => pickModel(button.dataset.model));
+      for (const button of document.querySelectorAll('.emb-pick')) button.addEventListener('click', () => pickEmb(button.dataset.model));
+
+      document.getElementById('nn-train').addEventListener('click', toggleTraining);
+      document.getElementById('nn-step').addEventListener('click', () => { if (nn.running) toggleTraining(); nnStep(); drawTraining(); });
+      document.getElementById('nn-reset').addEventListener('click', () => { nnInit(); drawTraining(); });
+      document.getElementById('reg').addEventListener('input', (event) => {
+        nn.reg = REG_STEPS[+event.target.value];
+        document.getElementById('reg-value').textContent = nn.reg;
+      });
+
+      pickModel('mlp');
+      renderHistory();
+      nnInit();
+      drawTraining();
+      drawCountTable();
+      pickEmb('mlp');
+    }
+
+    function pickModel(m) {
+      if (generating) generating = false;
+      model = m;
+      for (const button of document.querySelectorAll('.model-pick')) button.setAttribute('aria-pressed', button.dataset.model === m);
+      document.getElementById('stat-sees').textContent = `${blockSize()} ${blockSize() === 1 ? 'letter' : 'letters'}`;
+      document.getElementById('stat-params').textContent = (m === 'bigram' ? 729 : data[m].params).toLocaleString();
+      document.getElementById('stat-loss').textContent = (m === 'bigram' ? data.bigram.loss : data[m].devLoss).toFixed(2);
+      document.getElementById('inside-title').textContent = MODELS[m].title;
+      document.getElementById('inside-hint').textContent = MODELS[m].hint;
+      name = [];
+      finished = false;
+      refresh();
+      renderCompare();
+    }
+
+    function refresh() {
+      view = forward(context());
+      view.picked = null;
+      renderTiles();
+      drawProbs();
+      drawInside();
+    }
+
+    async function step(forced) {
+      if (busy) return;
+      if (generating && forced != null) return;
+      busy = true;
+      if (finished) {
+        name = [];
+        finished = false;
+        refresh();
+        await wait(150);
+      }
+      const ix = forced ?? sample(view.probs);
+      view.picked = ix;
+      drawProbs();
+      drawInside();
+      updateNote();
+      await wait(generating ? 240 : 160);
+      if (ix !== 0) {
+        name.push(ix);
+        freshIndex = name.length - 1;
+      }
+      if (ix === 0 || name.length >= MAX_LEN) {
+        finished = true;
+        history.unshift({ text: decode(name), model });
+        history = history.slice(0, 30);
+        renderHistory();
+        renderTiles();
+      } else {
+        refresh();
+      }
+      freshIndex = -1;
+      busy = false;
+    }
+
+    async function generate() {
+      if (generating) {
+        generating = false;
+        return;
+      }
+      generating = true;
+      setGenerating(true);
+      while (busy) await wait(20);
+      if (!finished && name.length > 0) {
+        name = [];
+        refresh();
+      }
+      if (finished) {
+        name = [];
+        finished = false;
+        refresh();
+      }
+      while (generating && !finished) await step();
+      generating = false;
+      setGenerating(false);
+    }
+
+    function setGenerating(on) {
+      document.getElementById('generate').textContent = on ? 'Stop' : 'Generate';
+      document.getElementById('step').disabled = on;
+    }
+
+    function clearAll() {
+      generating = false;
+      history = [];
+      name = [];
+      finished = false;
+      renderHistory();
+      refresh();
+    }
+
+    function renderTiles() {
+      const bs = blockSize();
+      const seq = new Array(bs).fill(0).concat(name);
+      if (finished) seq.push(0);
+      const ctxEnd = finished ? seq.length - 1 : seq.length;
+      const ctxStart = ctxEnd - bs;
+      const html = seq.map((ix, i) => {
+        const classes = ['tile'];
+        if (i < bs) classes.push('pad');
+        if (i >= ctxStart && i < ctxEnd) classes.push('ctx');
+        if (finished && i === seq.length - 1) classes.push('end');
+        if (i - bs === freshIndex) classes.push('fresh');
+        return `<div class="${classes.join(' ')}">${chars[ix]}</div>`;
+      });
+      if (!finished) html.push('<div class="tile next">?</div>');
+      document.getElementById('tiles').innerHTML = html.join('');
+      updateNote();
+    }
+
+    function updateNote() {
+      const note = document.getElementById('pick-note');
+      if (!view) return;
+      if (view.picked != null) {
+        const ch = view.picked === 0 ? 'end of name' : `"${chars[view.picked]}"`;
+        note.innerHTML = `Picked <b>${ch}</b> · ${pct(view.probs[view.picked])}`;
+      } else {
+        const best = view.probs.indexOf(Math.max(...view.probs));
+        const ch = best === 0 ? 'end of name' : `"${chars[best]}"`;
+        note.innerHTML = `Most likely: <b>${ch}</b> · ${pct(view.probs[best])}`;
+      }
+    }
+
+    function renderHistory() {
+      const el = document.getElementById('history');
+      if (history.length === 0) {
+        el.innerHTML = '<span class="empty">Names you make show up here.</span>';
+        return;
+      }
+      const tag = { bigram: 'bigram', mlp: 'mlp', wavenet: 'wavenet' };
+      el.innerHTML = history.map((h) => `<span class="chip">${h.text || '(empty)'} <i>${tag[h.model]}</i></span>`).join('');
+    }
+
+    function displayOrder() {
+      const order = [];
+      for (let i = 1; i < chars.length; i++) order.push(i);
+      order.push(0);
+      return order;
+    }
+
+    function drawProbs() {
+      const c = probsCtx;
+      c.clearRect(0, 0, PR_W, PR_H);
+      probsHits.hits = [];
+      const probs = view.probs;
+      const maxP = Math.max(...probs);
+      const best = probs.indexOf(maxP);
+      const left = 4, top = 22, bottom = 24;
+      const bw = (PR_W - left * 2) / chars.length;
+      const plotH = PR_H - top - bottom;
+
+      c.strokeStyle = LINE;
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(0, PR_H - bottom + 0.5);
+      c.lineTo(PR_W, PR_H - bottom + 0.5);
+      c.stroke();
+
+      displayOrder().forEach((ix, k) => {
+        const x = left + k * bw;
+        const h = Math.max(1.5, probs[ix] / maxP * plotH);
+        const y = PR_H - bottom - h;
+        const picked = ix === view.picked;
+        c.fillStyle = picked ? YELLOW : `rgba(42, 120, 214, ${0.3 + 0.7 * probs[ix] / maxP})`;
+        c.beginPath();
+        c.roundRect(x + 2, y, bw - 4, h, [4, 4, 0, 0]);
+        c.fill();
+        if (picked) {
+          c.strokeStyle = INK;
+          c.lineWidth = 2;
+          c.stroke();
+        }
+        c.fillStyle = picked || ix === best ? INK : SOFT;
+        c.font = `${picked || ix === best ? 900 : 700} 12px Nunito, sans-serif`;
+        c.textAlign = 'center';
+        c.fillText(chars[ix], x + bw / 2, PR_H - 8);
+        if (picked || (ix === best && view.picked == null)) {
+          c.fillStyle = INK;
+          c.font = '800 11px Nunito, sans-serif';
+          c.fillText(pct(probs[ix]), x + bw / 2, Math.max(12, y - 5));
+        }
+        const label = ix === 0 ? '"." (end of name)' : `"${chars[ix]}"`;
+        hit(probsHits, x, 0, bw, PR_H, `${label}: ${pct(probs[ix])}`, () => step(ix));
+      });
+    }
+
+    function drawInside() {
+      insideCtx.clearRect(0, 0, IN_W, IN_H);
+      insideHits.hits = [];
+      if (model === 'bigram') drawBigramInside();
+      else if (model === 'mlp') drawMLPInside();
+      else drawWaveNetInside();
+    }
+
+    function heading(c, text, x, y, sub) {
+      c.textAlign = 'center';
+      c.fillStyle = INK;
+      c.font = '800 13px Nunito, sans-serif';
+      c.fillText(text, x, y);
+      if (sub) {
+        c.fillStyle = SOFT;
+        c.font = '700 11px Nunito, sans-serif';
+        c.fillText(sub, x, y + 15);
+      }
+    }
+
+    function letterTile(c, ix, x, y, w, h, active) {
+      c.beginPath();
+      c.roundRect(x, y, w, h, 7);
+      c.fillStyle = active ? CREAM : '#fff';
+      c.fill();
+      c.strokeStyle = ix === 0 && !active ? LINE : INK;
+      c.lineWidth = 2;
+      c.stroke();
+      c.fillStyle = ix === 0 ? SOFT : INK;
+      c.font = `900 ${Math.round(h * 0.55)}px Nunito, sans-serif`;
+      c.textAlign = 'center';
+      c.textBaseline = 'middle';
+      c.fillText(chars[ix], x + w / 2, y + h / 2 + 1);
+      c.textBaseline = 'alphabetic';
+    }
+
+    function cellGrid(c, values, x, y, cols, cell, scale, describe) {
+      const rows = Math.ceil(values.length / cols);
+      c.fillStyle = '#fff';
+      c.fillRect(x, y, cols * cell, rows * cell);
+      values.forEach((v, i) => {
+        const cx = x + (i % cols) * cell;
+        const cy = y + Math.floor(i / cols) * cell;
+        c.fillStyle = colorFor(v * scale, 0.95);
+        c.fillRect(cx, cy, cell - 0.6, cell - 0.6);
+        hit(insideHits, cx, cy, cell, cell, describe(i, v));
+      });
+      c.strokeStyle = INK;
+      c.lineWidth = 1.5;
+      c.strokeRect(x - 1, y - 1, cols * cell + 1.4, rows * cell + 1.4);
+      return { w: cols * cell, h: rows * cell };
+    }
+
+    function funnel(c, x1, y1a, y1b, x2, y2a, y2b) {
+      c.fillStyle = 'rgba(29, 29, 27, 0.05)';
+      c.beginPath();
+      c.moveTo(x1, y1a);
+      c.bezierCurveTo((x1 + x2) / 2, y1a, (x1 + x2) / 2, y2a, x2, y2a);
+      c.lineTo(x2, y2b);
+      c.bezierCurveTo((x1 + x2) / 2, y2b, (x1 + x2) / 2, y1b, x1, y1b);
+      c.closePath();
+      c.fill();
+    }
+
+    function drawBigramInside() {
+      const c = insideCtx;
+      const n = chars.length;
+      const cell = 13.6;
+      const size = cell * n;
+      const x0 = (IN_W - size) / 2 + 14;
+      const y0 = 44;
+      const row = view.row;
+
+      c.fillStyle = SOFT;
+      c.font = '800 12px Nunito, sans-serif';
+      c.textAlign = 'left';
+      c.fillText('next letter →', x0, 14);
+      c.save();
+      c.translate(x0 - 28, y0);
+      c.rotate(-Math.PI / 2);
+      c.textAlign = 'right';
+      c.fillText('← current letter', 0, 0);
+      c.restore();
+
+      c.font = '800 10px Nunito, sans-serif';
+      c.textAlign = 'center';
+      for (let j = 0; j < n; j++) {
+        c.fillStyle = j === view.picked ? INK : SOFT;
+        c.fillText(chars[j], x0 + j * cell + cell / 2, y0 - 8);
+      }
+      c.textAlign = 'right';
+      for (let i = 0; i < n; i++) {
+        c.fillStyle = i === row ? INK : SOFT;
+        c.font = `${i === row ? 900 : 800} ${i === row ? 12 : 10}px Nunito, sans-serif`;
+        c.fillText(chars[i], x0 - 6, y0 + i * cell + cell / 2 + 4);
+      }
+
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          const p = P[i][j];
+          const x = x0 + j * cell, y = y0 + i * cell;
+          c.fillStyle = '#fff';
+          c.fillRect(x, y, cell - 1, cell - 1);
+          c.fillStyle = blueFor(p, i === row ? 0.95 : 0.3);
+          c.fillRect(x, y, cell - 1, cell - 1);
+          hit(insideHits, x, y, cell, cell, `"${chars[i]}" → "${chars[j]}": ${pct(p)} (seen ${data.bigram.counts[i][j].toLocaleString()} times)`);
+        }
+      }
+      c.strokeStyle = INK;
+      c.lineWidth = 2.5;
+      c.beginPath();
+      c.roundRect(x0 - 2, y0 + row * cell - 2, size + 3, cell + 3, 4);
+      c.stroke();
+
+      if (view.picked != null) {
+        const x = x0 + view.picked * cell, y = y0 + row * cell;
+        c.fillStyle = YELLOW;
+        c.fillRect(x - 1, y - 1, cell + 1, cell + 1);
+        c.strokeStyle = INK;
+        c.lineWidth = 2;
+        c.strokeRect(x - 1, y - 1, cell + 1, cell + 1);
+      }
+    }
+
+    function drawMLPInside() {
+      const c = insideCtx;
+      const m = data.mlp, E = m.nEmbd;
+      const rowsY = [138, 226, 314];
+      const stripX = 72, cellW = 12, cellH = 28;
+      const gridX = 262, gridY = 106, gridCols = 10, gridCell = 12;
+      const gridH = Math.ceil(m.nHidden / gridCols) * gridCell;
+      const outX = 430, outTop = 70, rowH = 11.6;
+      const outBottom = outTop + rowH * chars.length;
+
+      heading(c, 'letters', 32, 22);
+      heading(c, 'embeddings', stripX + E * cellW / 2, 22, `${view.ctx.length} × ${E} numbers`);
+      heading(c, 'hidden layer', gridX + gridCols * gridCell / 2, 22, `${m.nHidden} tanh neurons`);
+      heading(c, 'next letter', 482, 22, '27 probabilities');
+
+      rowsY.forEach((yc, t) => {
+        funnel(c, stripX + E * cellW, yc - cellH / 2, yc + cellH / 2, gridX, gridY, gridY + gridH);
+      });
+      funnel(c, gridX + gridCols * gridCell, gridY, gridY + gridH, outX - 4, outTop, outBottom);
+
+      rowsY.forEach((yc, t) => {
+        const ix = view.ctx[t];
+        letterTile(c, ix, 14, yc - 18, 36, 36, true);
+        c.strokeStyle = INK;
+        c.lineWidth = 2;
+        c.beginPath();
+        c.moveTo(52, yc);
+        c.lineTo(stripX - 4, yc);
+        c.stroke();
+        const values = view.emb.slice(t * E, t * E + E);
+        c.fillStyle = '#fff';
+        c.fillRect(stripX, yc - cellH / 2, E * cellW, cellH);
+        values.forEach((v, d) => {
+          const x = stripX + d * cellW;
+          c.fillStyle = colorFor(v / 2, 0.95);
+          c.fillRect(x, yc - cellH / 2, cellW - 0.6, cellH);
+          hit(insideHits, x, yc - cellH / 2, cellW, cellH, `embedding of "${chars[ix]}", number ${d + 1}: ${v.toFixed(2)}`);
+        });
+        c.strokeStyle = INK;
+        c.lineWidth = 1.5;
+        c.strokeRect(stripX - 1, yc - cellH / 2 - 1, E * cellW + 1.4, cellH + 2);
+      });
+
+      cellGrid(c, view.h, gridX, gridY, gridCols, gridCell, 1, (i, v) => `hidden neuron ${i + 1}: tanh output ${v.toFixed(2)}`);
+
+      const maxP = Math.max(...view.probs);
+      displayOrder().forEach((ix, k) => {
+        const y = outTop + k * rowH;
+        const p = view.probs[ix];
+        const picked = ix === view.picked;
+        c.fillStyle = picked ? INK : SOFT;
+        c.font = `${picked ? 900 : 800} 10px Nunito, sans-serif`;
+        c.textAlign = 'center';
+        c.fillText(chars[ix], outX + 4, y + rowH - 3);
+        c.fillStyle = picked ? YELLOW : `rgba(42, 120, 214, ${0.3 + 0.7 * p / maxP})`;
+        const w = Math.max(1.5, p / maxP * 90);
+        c.beginPath();
+        c.roundRect(outX + 14, y + 1.5, w, rowH - 3, 2);
+        c.fill();
+        if (picked) {
+          c.strokeStyle = INK;
+          c.lineWidth = 1.5;
+          c.stroke();
+        }
+        hit(insideHits, outX - 4, y, 120, rowH, `next letter "${chars[ix]}": ${pct(p)}`);
+      });
+
+      c.fillStyle = SOFT;
+      c.font = '700 12px Nunito, sans-serif';
+      c.textAlign = 'center';
+      c.fillText('embeddings → tanh(x · W1 + b1) → h · W2 + b2 → softmax', IN_W / 2, IN_H - 10);
+    }
+
+    function drawWaveNetInside() {
+      const c = insideCtx;
+      const w = data.wavenet;
+      const levels = view.levels;
+      const letterX = (i) => 94 + 60 * i;
+      const levelX = (L, j) => {
+        const span = 2 ** L;
+        return (letterX(j * span) + letterX(j * span + span - 1)) / 2;
+      };
+      const specs = [
+        { y: 332, cols: 6, cell: 7 },
+        { y: 248, cols: 16, cell: 5 },
+        { y: 160, cols: 16, cell: 6.5 },
+        { y: 62, cols: 16, cell: 8 },
+      ];
+      const box = (L) => {
+        const s = specs[L];
+        const n = L === 0 ? w.nEmbd : w.nHidden;
+        return { w: s.cols * s.cell, h: Math.ceil(n / s.cols) * s.cell };
+      };
+      const outY = 46, outBar = 9, outH = 30;
+      const outLeft = levelX(3, 0) - outBar * chars.length / 2;
+
+      const labels = [
+        ['out', '27 letters', 30],
+        ['all 8', `${w.nHidden} neurons`, 92],
+        ['4 letters', `${w.nHidden} neurons`, 184],
+        ['2 letters', `${w.nHidden} neurons`, 266],
+        ['embed', `${w.nEmbd} each`, 344],
+        ['letters', '', 403],
+      ];
+      for (const [text, sub, y] of labels) {
+        c.textAlign = 'left';
+        c.fillStyle = INK;
+        c.font = '800 12px Nunito, sans-serif';
+        c.fillText(text, 6, y);
+        if (sub) {
+          c.fillStyle = SOFT;
+          c.font = '700 10px Nunito, sans-serif';
+          c.fillText(sub, 6, y + 13);
+        }
+      }
+
+      c.strokeStyle = 'rgba(29, 29, 27, 0.28)';
+      c.lineWidth = 2;
+      for (let L = 0; L < levels.length; L++) {
+        const childBox = box(L);
+        for (let j = 0; j < levels[L].length; j++) {
+          const cx = L === 0 ? letterX(j) : levelX(L, j);
+          const top = specs[L].y;
+          let px, bottom;
+          if (L === levels.length - 1) {
+            px = cx;
+            bottom = outY + 2;
+          } else {
+            px = levelX(L + 1, Math.floor(j / 2));
+            bottom = specs[L + 1].y + box(L + 1).h;
+          }
+          c.beginPath();
+          c.moveTo(cx, top);
+          c.bezierCurveTo(cx, (top + bottom) / 2, px, (top + bottom) / 2, px, bottom);
+          c.stroke();
+        }
+      }
+      for (let i = 0; i < view.ctx.length; i++) {
+        c.beginPath();
+        c.moveTo(letterX(i), 384);
+        c.lineTo(letterX(i), specs[0].y + box(0).h);
+        c.stroke();
+      }
+
+      view.ctx.forEach((ix, i) => letterTile(c, ix, letterX(i) - 15, 384, 30, 30, true));
+
+      levels.forEach((nodes, L) => {
+        const s = specs[L];
+        const b = box(L);
+        nodes.forEach((values, j) => {
+          const cx = L === 0 ? letterX(j) : levelX(L, j);
+          const span = 2 ** L;
+          const covered = decode(view.ctx.slice(j * span, j * span + span));
+          const what = L === 0 ? `embedding of "${covered}"` : `node for "${covered}"`;
+          cellGrid(c, values, cx - b.w / 2, s.y, s.cols, s.cell, L === 0 ? 0.5 : 1,
+            (i, v) => `${what}, ${L === 0 ? 'number' : 'neuron'} ${i + 1}: ${v.toFixed(2)}`);
+        });
+      });
+
+      const maxP = Math.max(...view.probs);
+      displayOrder().forEach((ix, k) => {
+        const x = outLeft + k * outBar;
+        const p = view.probs[ix];
+        const h = Math.max(1.5, p / maxP * outH);
+        const picked = ix === view.picked;
+        c.fillStyle = picked ? YELLOW : `rgba(42, 120, 214, ${0.3 + 0.7 * p / maxP})`;
+        c.beginPath();
+        c.roundRect(x + 1, outY - h, outBar - 2, h, [2, 2, 0, 0]);
+        c.fill();
+        if (picked) {
+          c.strokeStyle = INK;
+          c.lineWidth = 1.5;
+          c.stroke();
+        }
+        hit(insideHits, x, outY - outH - 4, outBar, outH + 8, `next letter "${chars[ix]}": ${pct(p)}`);
+      });
+      c.strokeStyle = LINE;
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(outLeft, outY + 0.5);
+      c.lineTo(outLeft + outBar * chars.length, outY + 0.5);
+      c.stroke();
+    }
+
+    function randn() {
+      let u = 0, v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+    }
+
+    function nnInit() {
+      for (let i = 0; i < nn.W.length; i++) nn.W[i] = randn();
+      nn.step = 0;
+      nn.losses = [];
+      nn.lastLoss = nnLoss().loss;
+      document.getElementById('nn-stat-step').textContent = '0';
+      document.getElementById('nn-stat-loss').textContent = nn.lastLoss.toFixed(3);
+    }
+
+    function nnRows() {
+      const n = chars.length;
+      const rows = [];
+      for (let i = 0; i < n; i++) rows.push(softmax(Array.from(nn.W.subarray(i * n, i * n + n))));
+      return rows;
+    }
+
+    function nnLoss() {
+      const n = chars.length;
+      const rows = nnRows();
+      let nll = 0;
+      let sq = 0;
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          nll -= data.bigram.counts[i][j] * Math.log(rows[i][j]);
+          sq += nn.W[i * n + j] ** 2;
+        }
+      }
+      return { rows, loss: nll / nn.total + nn.reg * sq / (n * n) };
+    }
+
+    function nnStep() {
+      const n = chars.length;
+      const { rows, loss } = nnLoss();
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          const k = i * n + j;
+          const grad = (nn.rowTotals[i] * rows[i][j] - data.bigram.counts[i][j]) / nn.total + nn.reg * 2 * nn.W[k] / (n * n);
+          nn.W[k] -= NN_LR * grad;
+        }
+      }
+      nn.step += 1;
+      nn.losses.push(loss);
+      nn.lastLoss = loss;
+      document.getElementById('nn-stat-step').textContent = nn.step;
+      document.getElementById('nn-stat-loss').textContent = loss.toFixed(3);
+    }
+
+    function toggleTraining() {
+      nn.running = !nn.running;
+      document.getElementById('nn-train').textContent = nn.running ? 'Pause' : 'Train';
+      if (nn.running) trainLoop();
+    }
+
+    function trainLoop() {
+      if (!nn.running) return;
+      nnStep();
+      drawTraining();
+      requestAnimationFrame(trainLoop);
+    }
+
+    function drawTable(c, state, rows, label) {
+      const n = chars.length;
+      const x0 = 18, y0 = 18;
+      const cell = (TB - x0 - 2) / n;
+      c.clearRect(0, 0, TB, TB);
+      state.hits = [];
+      c.font = '800 8px Nunito, sans-serif';
+      c.fillStyle = SOFT;
+      c.textAlign = 'center';
+      for (let j = 0; j < n; j++) c.fillText(chars[j], x0 + j * cell + cell / 2, y0 - 6);
+      c.textAlign = 'right';
+      for (let i = 0; i < n; i++) c.fillText(chars[i], x0 - 4, y0 + i * cell + cell / 2 + 3);
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          const x = x0 + j * cell, y = y0 + i * cell;
+          c.fillStyle = blueFor(rows[i][j]);
+          c.fillRect(x, y, cell - 0.8, cell - 0.8);
+          hit(state, x, y, cell, cell, `"${chars[i]}" → "${chars[j]}": ${label} ${pct(rows[i][j])} · counting ${pct(P[i][j])}`);
+        }
+      }
+    }
+
+    function drawCountTable() {
+      drawTable(countCtx, countHits, P, 'counting');
+    }
+
+    function drawTraining() {
+      drawTable(netCtx, netHits, nnRows(), 'network');
+      drawTrainLoss();
+    }
+
+    function drawTrainLoss() {
+      const c = lossCtx;
+      c.clearRect(0, 0, LOSS_W, LOSS_H);
+      const left = 34, right = 8, top = 12, bottom = 18;
+      const lo = 2.3;
+      const hi = Math.max(4, ...(nn.losses.length ? [nn.losses[0]] : [nn.lastLoss]));
+      const yOf = (v) => top + (1 - (Math.min(hi, v) - lo) / (hi - lo)) * (LOSS_H - top - bottom);
+
+      c.font = '700 10px Nunito, sans-serif';
+      c.fillStyle = SOFT;
+      c.textAlign = 'right';
+      for (const v of [2.5, 3, 3.5, 4]) {
+        if (v > hi) continue;
+        c.fillText(v.toFixed(1), left - 6, yOf(v) + 3);
+        c.strokeStyle = PAPER;
+        c.lineWidth = 1;
+        c.beginPath();
+        c.moveTo(left, yOf(v));
+        c.lineTo(LOSS_W - right, yOf(v));
+        c.stroke();
+      }
+
+      const target = data.bigram.loss;
+      c.setLineDash([5, 4]);
+      c.strokeStyle = BLUE;
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.moveTo(left, yOf(target));
+      c.lineTo(LOSS_W - right, yOf(target));
+      c.stroke();
+      c.setLineDash([]);
+      c.fillStyle = BLUE;
+      c.textAlign = 'right';
+      c.font = '800 10px Nunito, sans-serif';
+      c.fillText(`counting model ${target.toFixed(3)}`, LOSS_W - right, yOf(target) + 13);
+
+      if (nn.losses.length < 2) {
+        c.fillStyle = SOFT;
+        c.font = '700 14px Nunito, sans-serif';
+        c.textAlign = 'center';
+        c.fillText('Press Train to start', (LOSS_W + left) / 2, LOSS_H / 2 - 20);
+        return;
+      }
+      c.strokeStyle = INK;
+      c.lineWidth = 2;
+      c.lineJoin = 'round';
+      c.beginPath();
+      nn.losses.forEach((v, i) => {
+        const x = left + i / (nn.losses.length - 1) * (LOSS_W - left - right);
+        if (i === 0) c.moveTo(x, yOf(v));
+        else c.lineTo(x, yOf(v));
+      });
+      c.stroke();
+    }
+
+    function pickEmb(m) {
+      embModel = m;
+      for (const button of document.querySelectorAll('.emb-pick')) button.setAttribute('aria-pressed', button.dataset.model === m);
+      document.getElementById('emb-hint').textContent =
+        `Each letter's ${data[m].nEmbd} learned numbers, squashed down to 2D (with PCA) so we can plot them. ` +
+        'Letters the model uses in similar ways end up close together. Look where the vowels ended up: nobody told it which letters are vowels.';
+      drawEmb();
+    }
+
+    function drawEmb() {
+      const c = embCtx;
+      c.clearRect(0, 0, EMB_W, EMB_H);
+      embHits.hits = [];
+      const pts = data[embModel].emb2d;
+      const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+      const pad = 24, padBottom = 44, r = 12;
+      const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+      const sx = (v) => pad + (v - minX) / (maxX - minX) * (EMB_W - pad * 2);
+      const sy = (v) => pad + (1 - (v - minY) / (maxY - minY)) * (EMB_H - pad - padBottom);
+      const spots = pts.map(([px, py]) => ({ x: sx(px), y: sy(py) }));
+      for (let iter = 0; iter < 80; iter++) {
+        for (let i = 0; i < spots.length; i++) {
+          for (let j = i + 1; j < spots.length; j++) {
+            const dx = spots[j].x - spots[i].x, dy = spots[j].y - spots[i].y;
+            const d = Math.hypot(dx, dy) || 0.01;
+            const overlap = 2 * r + 3 - d;
+            if (overlap > 0) {
+              const ux = (dx || 0.01) / d * overlap / 2, uy = dy / d * overlap / 2;
+              spots[i].x -= ux; spots[i].y -= uy;
+              spots[j].x += ux; spots[j].y += uy;
+            }
+          }
+        }
+        for (const spot of spots) {
+          spot.x = Math.min(EMB_W - r - 2, Math.max(r + 2, spot.x));
+          spot.y = Math.min(EMB_H - padBottom + r, Math.max(r + 2, spot.y));
+        }
+      }
+
+      c.strokeStyle = PAPER;
+      c.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const x = pad + i * (EMB_W - pad * 2) / 4;
+        const y = pad + i * (EMB_H - pad - padBottom) / 4;
+        c.beginPath(); c.moveTo(x, pad); c.lineTo(x, EMB_H - padBottom); c.stroke();
+        c.beginPath(); c.moveTo(pad, y); c.lineTo(EMB_W - pad, y); c.stroke();
+      }
+
+      spots.forEach(({ x, y }, ix) => {
+        const ch = chars[ix];
+        const vowel = VOWELS.has(ch);
+        c.beginPath();
+        c.arc(x, y, r, 0, Math.PI * 2);
+        c.fillStyle = ix === 0 ? RED : vowel ? BLUE : '#fff';
+        c.fill();
+        c.strokeStyle = ix === 0 || vowel ? '#fff' : INK;
+        c.lineWidth = 2;
+        c.stroke();
+        c.fillStyle = ix === 0 || vowel ? '#fff' : INK;
+        c.font = '900 14px Nunito, sans-serif';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillText(ch, x, y + 1);
+        c.textBaseline = 'alphabetic';
+        const kind = ix === 0 ? 'start / end of a name' : vowel ? 'vowel' : 'consonant';
+        hit(embHits, x - r, y - r, r * 2, r * 2, `"${ch}" · ${kind}`);
+      });
+
+      c.font = '800 12px Nunito, sans-serif';
+      c.textAlign = 'left';
+      c.textBaseline = 'alphabetic';
+      const legend = [[BLUE, 'vowels'], [RED, 'start / end'], ['#fff', 'consonants']];
+      let lx = 8;
+      for (const [color, text] of legend) {
+        c.beginPath();
+        c.arc(lx + 6, EMB_H - 9, 6, 0, Math.PI * 2);
+        c.fillStyle = color;
+        c.fill();
+        c.strokeStyle = color === '#fff' ? INK : color;
+        c.lineWidth = 1.5;
+        c.stroke();
+        c.fillStyle = SOFT;
+        c.fillText(text, lx + 16, EMB_H - 5);
+        lx += 22 + c.measureText(text).width + 12;
+      }
+    }
+
+    function renderCompare() {
+      const rows = [
+        { key: 'random', name: 'Random guess', sub: 'every letter 1/27', loss: Math.log(27), baseline: true },
+        { key: 'bigram', name: 'Bigram', sub: 'sees 1 letter', loss: data.bigram.loss },
+        { key: 'mlp', name: 'MLP', sub: 'sees 3 letters', loss: data.mlp.devLoss },
+        { key: 'wavenet', name: 'WaveNet', sub: 'sees 8 letters', loss: data.wavenet.devLoss },
+      ];
+      const max = Math.log(27);
+      document.getElementById('compare').innerHTML = rows.map((r) => `
+        <div class="bar-row${r.baseline ? ' baseline' : ''}${r.key === model ? ' current' : ''}">
+          <span class="bar-name">${r.name}<small>${r.sub}</small></span>
+          <div class="bar-track"><div class="bar-fill" style="width:${(r.loss / max * 100).toFixed(1)}%"></div></div>
+          <span class="bar-val">${r.loss.toFixed(2)}</span>
+        </div>`).join('');
+    }
+
+    main();
+  </script>
+</body>
+</html>
